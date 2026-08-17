@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instant WhatsApp Store - Quick Order</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        body { background: #F8FAFC; color: #0F172A; padding-bottom: 90px; }
+        .header { background: #0F172A; color: white; padding: 1.25rem 1rem; text-align: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header h1 { font-size: 1.2rem; font-weight: 700; color: #38BDF8; }
+        .header p { font-size: 0.8rem; color: #94A3B8; margin-top: 2px; }
+        .container { max-width: 600px; margin: 0 auto; padding: 1rem; }
+        .category-title { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; color: #64748B; margin: 1rem 0 0.5rem; font-weight: 700; }
+        .product-card { background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 0.85rem 1rem; margin-bottom: 0.6rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.03); }
+        .product-info h3 { font-size: 0.95rem; font-weight: 600; }
+        .product-info p { font-size: 0.8rem; color: #16A34A; font-weight: 600; margin-top: 2px; }
+        .qty-controls { display: flex; align-items: center; gap: 0.5rem; }
+        .qty-btn { width: 32px; height: 32px; border-radius: 8px; border: 1px solid #CBD5E1; background: #F1F5F9; font-size: 1.1rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .qty-btn:active { background: #E2E8F0; }
+        .qty-val { font-size: 0.95rem; font-weight: 600; width: 20px; text-align: center; }
+        .customer-card { background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 1rem; margin-top: 1.5rem; }
+        .customer-card input, .customer-card textarea { width: 100%; padding: 0.75rem; border: 1px solid #CBD5E1; border-radius: 8px; margin-top: 0.5rem; font-size: 0.9rem; outline: none; }
+        .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #E2E8F0; padding: 0.75rem 1rem; display: flex; justify-content: space-between; align-items: center; max-width: 600px; margin: 0 auto; box-shadow: 0 -4px 12px rgba(0,0,0,0.05); }
+        .total-box span { font-size: 0.75rem; color: #64748B; display: block; }
+        .total-box strong { font-size: 1.2rem; color: #0F172A; }
+        .send-btn { background: #25D366; color: white; border: none; padding: 0.85rem 1.4rem; border-radius: 10px; font-weight: 700; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1 id="storeName">🏪 Shree Ganesh Supermarket</h1>
+        <p>Instant WhatsApp Quick-Order Portal</p>
+    </div>
+    <div class="container">
+        <div class="category-title">Daily Essentials</div>
+        <div id="productList"></div>
+
+        <div class="customer-card">
+            <label style="font-size:0.85rem; font-weight:600;">Delivery Details</label>
+            <input type="text" id="custName" placeholder="Your Name">
+            <input type="text" id="custPhone" placeholder="Mobile Number">
+            <textarea id="custAddress" rows="2" placeholder="Delivery Address / Flat No"></textarea>
+        </div>
+    </div>
+    <div class="bottom-bar">
+        <div class="total-box">
+            <span>Total Amount</span>
+            <strong id="grandTotal">₹0</strong>
+        </div>
+        <button class="send-btn" onclick="sendOrder()">Place Order via WhatsApp ➔</button>
+    </div>
+
+    <script>
+        const storeWhatsApp = "919876543210"; // Replace with client's actual WhatsApp number
+        const products = [
+            { id: 1, name: "Aashirvaad Atta (5kg)", price: 245 },
+            { id: 2, name: "Fortune Sunflower Oil (1L)", price: 135 },
+            { id: 3, name: "Tata Salt (1kg)", price: 28 },
+            { id: 4, name: "India Gate Basmati Rice (1kg)", price: 110 },
+            { id: 5, name: "Amul Butter (100g)", price: 58 },
+            { id: 6, name: "Tata Tea Gold (250g)", price: 140 }
+        ];
+
+        let cart = {};
+
+        function renderProducts() {
+            const container = document.getElementById('productList');
+            container.innerHTML = products.map(p => `
+                <div class="product-card">
+                    <div class="product-info">
+                        <h3>${p.name}</h3>
+                        <p>₹${p.price}</p>
+                    </div>
+                    <div class="qty-controls">
+                        <button class="qty-btn" onclick="updateQty(${p.id}, -1)">−</button>
+                        <span class="qty-val" id="qty-${p.id}">0</span>
+                        <button class="qty-btn" onclick="updateQty(${p.id}, 1)">+</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateQty(id, delta) {
+            cart[id] = (cart[id] || 0) + delta;
+            if (cart[id] < 0) cart[id] = 0;
+            document.getElementById(`qty-${id}`).innerText = cart[id];
+            calculateTotal();
+        }
+
+        function calculateTotal() {
+            let total = 0;
+            for (let id in cart) {
+                const prod = products.find(p => p.id == id);
+                total += (cart[id] * prod.price);
+            }
+            document.getElementById('grandTotal').innerText = "₹" + total;
+            return total;
+        }
+
+        function sendOrder() {
+            const name = document.getElementById('custName').value.trim();
+            const phone = document.getElementById('custPhone').value.trim();
+            const address = document.getElementById('custAddress').value.trim();
+            const total = calculateTotal();
+
+            if (total === 0) {
+                alert("Please add at least 1 item to order.");
+                return;
+            }
+            if (!name || !address) {
+                alert("Please enter your Name and Address.");
+                return;
+            }
+
+            let msg = `🛒 *NEW ORDER - Shree Ganesh Supermarket*\n\n`;
+            msg += `👤 *Customer:* ${name} (${phone})\n📍 *Address:* ${address}\n\n*Items Ordered:*\n`;
+
+            for (let id in cart) {
+                if (cart[id] > 0) {
+                    const prod = products.find(p => p.id == id);
+                    msg += `• ${prod.name} x ${cart[id]} = ₹${prod.price * cart[id]}\n`;
+                }
+            }
+
+            msg += `\n💰 *Total Amount:* ₹${total}\n\n_Please confirm delivery timing._`;
+            window.open(`https://wa.me/${storeWhatsApp}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+
+        renderProducts();
+    </script>
+</body>
+</html>
+<meta charset="UTF-8">
